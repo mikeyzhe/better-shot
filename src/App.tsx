@@ -214,6 +214,7 @@ function App() {
   const [mode, setMode] = useState<AppMode>("main");
   const [saveDir, setSaveDir] = useState<string>("");
   const [copyToClipboard, setCopyToClipboard] = useState(true);
+  const [copyFilepathToClipboard, setCopyFilepathToClipboard] = useState(false);
   const [autoApplyBackground, setAutoApplyBackground] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -224,14 +225,14 @@ function App() {
   const [tempDir, setTempDir] = useState<string>("/tmp");
 
   // Refs to hold current values for use in callbacks that may have stale closures
-  const settingsRef = useRef({ autoApplyBackground, saveDir, copyToClipboard, tempDir });
+  const settingsRef = useRef({ autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir });
   const registeredShortcutsRef = useRef<Set<string>>(new Set());
   const lastCaptureTimeRef = useRef(0);
-  
+
   // Keep ref in sync with state
   useEffect(() => {
-    settingsRef.current = { autoApplyBackground, saveDir, copyToClipboard, tempDir };
-  }, [autoApplyBackground, saveDir, copyToClipboard, tempDir]);
+    settingsRef.current = { autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir };
+  }, [autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir]);
 
   // Load settings function
   const loadSettings = useCallback(async () => {
@@ -247,6 +248,11 @@ function App() {
       const savedCopyToClip = await store.get<boolean>("copyToClipboard");
       if (savedCopyToClip !== null && savedCopyToClip !== undefined) {
         setCopyToClipboard(savedCopyToClip);
+      }
+
+      const savedCopyFilepath = await store.get<boolean>("copyFilepathToClipboard");
+      if (savedCopyFilepath !== null && savedCopyFilepath !== undefined) {
+        setCopyFilepathToClipboard(savedCopyFilepath);
       }
 
       const savedAutoApply = await store.get<boolean>("autoApplyBackground");
@@ -309,6 +315,11 @@ function App() {
         const savedCopyToClip = await store.get<boolean>("copyToClipboard");
         if (savedCopyToClip !== null && savedCopyToClip !== undefined) {
           setCopyToClipboard(savedCopyToClip);
+        }
+
+        const savedCopyFilepath = await store.get<boolean>("copyFilepathToClipboard");
+        if (savedCopyFilepath !== null && savedCopyFilepath !== undefined) {
+          setCopyFilepathToClipboard(savedCopyFilepath);
         }
 
         const savedAutoApply = await store.get<boolean>("autoApplyBackground");
@@ -382,7 +393,7 @@ function App() {
     const appWindow = getCurrentWindow();
     
     // Read current settings from ref to avoid stale closure issues
-    const { autoApplyBackground: shouldAutoApply, saveDir: currentSaveDir, copyToClipboard: shouldCopyToClipboard, tempDir: currentTempDir } = settingsRef.current;
+    const { autoApplyBackground: shouldAutoApply, saveDir: currentSaveDir, copyToClipboard: shouldCopyToClipboard, copyFilepathToClipboard: shouldCopyFilepath, tempDir: currentTempDir } = settingsRef.current;
 
     try {
       await appWindow.hide();
@@ -462,8 +473,12 @@ function App() {
           const savedPath = await invoke<string>("save_edited_image", {
             imageData: processedImageData,
             saveDir: currentSaveDir,
-            copyToClip: shouldCopyToClipboard,
+            copyToClip: shouldCopyToClipboard && !shouldCopyFilepath,
           });
+
+          if (shouldCopyFilepath) {
+            await invoke("copy_text_to_clipboard_cmd", { text: savedPath });
+          }
 
           await appWindow.hide();
           await showQuickOverlay(savedPath, mouseX, mouseY);
@@ -678,8 +693,12 @@ function App() {
       const savedPath = await invoke<string>("save_edited_image", {
         imageData: editedImageData,
         saveDir,
-        copyToClip: copyToClipboard,
+        copyToClip: copyToClipboard && !copyFilepathToClipboard,
       });
+
+      if (copyFilepathToClipboard) {
+        await invoke("copy_text_to_clipboard_cmd", { text: savedPath });
+      }
 
       toast.success("Image saved", {
         description: savedPath,

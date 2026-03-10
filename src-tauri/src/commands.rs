@@ -50,6 +50,11 @@ pub async fn copy_image_file_to_clipboard(path: String) -> Result<(), String> {
     copy_image_to_clipboard(&path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn copy_text_to_clipboard_cmd(text: String) -> Result<(), String> {
+    copy_text_to_clipboard(&text).map_err(|e| e.to_string())
+}
+
 /// Quick capture of primary monitor
 #[tauri::command]
 pub async fn capture_once(

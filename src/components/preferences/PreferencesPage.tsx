@@ -17,12 +17,14 @@ interface PreferencesPageProps {
 interface GeneralSettings {
   saveDir: string;
   copyToClipboard: boolean;
+  copyFilepathToClipboard: boolean;
 }
 
 export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPageProps) {
   const [settings, setSettings] = useState<GeneralSettings>({
     saveDir: "",
     copyToClipboard: true,
+    copyFilepathToClipboard: false,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,11 +35,13 @@ export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPagePro
         const store = await Store.load("settings.json");
         
         const copyToClip = await store.get<boolean>("copyToClipboard");
+        const copyFilepath = await store.get<boolean>("copyFilepathToClipboard");
         const saveDir = await store.get<string>("saveDir");
-        
+
         setSettings({
           saveDir: saveDir || "",
           copyToClipboard: copyToClip ?? true,
+          copyFilepathToClipboard: copyFilepath ?? false,
         });
       } catch (err) {
         console.error("Failed to load settings:", err);
@@ -144,6 +148,21 @@ export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPagePro
                 id="copy-clipboard"
                 checked={settings.copyToClipboard}
                 onCheckedChange={(checked) => updateSetting("copyToClipboard", checked)}
+              />
+            </div>
+
+            {/* Copy Filepath to Clipboard */}
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <label htmlFor="copy-filepath" className="text-sm font-medium text-foreground cursor-pointer block">
+                  Copy filepath to clipboard
+                </label>
+                <p className="text-xs text-foreground0">Copy the saved file path to clipboard after saving</p>
+              </div>
+              <Switch
+                id="copy-filepath"
+                checked={settings.copyFilepathToClipboard}
+                onCheckedChange={(checked) => updateSetting("copyFilepathToClipboard", checked)}
               />
             </div>
           </CardContent>

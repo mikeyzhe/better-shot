@@ -50,7 +50,7 @@ export function ImageEditor({ imagePath, onSave, onCancel }: ImageEditorProps) {
   const [tempDir, setTempDir] = useState<string>("/private/tmp");
 
    // Annotation UI state (not part of undo/redo)
-  const [selectedTool, setSelectedTool] = useState<ToolType>("select");
+  const [selectedTool, setSelectedTool] = useState<ToolType>("arrow");
   const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);

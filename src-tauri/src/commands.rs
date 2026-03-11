@@ -29,6 +29,9 @@ pub async fn move_window_to_active_space(app_handle: AppHandle) -> Result<(), St
 
         window
             .with_webview(|webview| {
+                use objc2_app_kit::{NSApp, NSApplicationActivationPolicy};
+                use objc2::MainThreadMarker;
+
                 let ns_window = webview.ns_window();
                 if ns_window.is_null() {
                     return;
@@ -38,7 +41,25 @@ pub async fn move_window_to_active_space(app_handle: AppHandle) -> Result<(), St
                 let move_to_active_space: usize = 1 << 1;
                 let new_behavior = current | move_to_active_space;
                 let _: () = unsafe { msg_send![ns_window, setCollectionBehavior: new_behavior] };
+
+                // Temporarily switch to regular app mode so the window can receive focus
+                if let Some(mtm) = MainThreadMarker::new() {
+                    let app = NSApp(mtm);
+                    app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
+                    unsafe { app.activate() };
+                }
+
                 let _: () = unsafe { msg_send![ns_window, orderFrontRegardless] };
+                unsafe { ns_window.makeKeyAndOrderFront(None) };
+
+                // Switch back to accessory mode after a short delay
+                std::thread::spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    if let Some(mtm) = MainThreadMarker::new() {
+                        let app = NSApp(mtm);
+                        app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
+                    }
+                });
             })
             .map_err(|e| e.to_string())?;
     }

@@ -38,7 +38,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": "-"
+      "signingIdentity": "Apple Development: Yizhou He (U4HVU5232W)"
     }
   }
 }

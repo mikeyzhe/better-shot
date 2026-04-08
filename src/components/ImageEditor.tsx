@@ -50,7 +50,7 @@ export function ImageEditor({ imagePath, onSave, onCancel }: ImageEditorProps) {
   const [tempDir, setTempDir] = useState<string>("/private/tmp");
 
    // Annotation UI state (not part of undo/redo)
-  const [selectedTool, setSelectedTool] = useState<ToolType>("select");
+  const [selectedTool, setSelectedTool] = useState<ToolType>("arrow");
   const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -216,14 +216,40 @@ export function ImageEditor({ imagePath, onSave, onCancel }: ImageEditorProps) {
     }
   }, [screenshotImage, annotations, renderHighQualityCanvas, isSaving, isCopying, tempDir, imagePath]);
 
+  // Silent copy to clipboard (no toast, no loading state)
+  const silentCopyToClipboard = useCallback(async (anns: Annotation[]) => {
+    if (!screenshotImage) return;
+    try {
+      const canvas = await renderHighQualityCanvas(anns, imagePath);
+      if (!canvas) return;
+      const dataUrl = canvas.toDataURL("image/png");
+      await invoke("save_edited_image", {
+        imageData: dataUrl,
+        saveDir: tempDir,
+        copyToClip: true,
+      });
+    } catch (e) {
+      console.error("Auto-copy failed:", e);
+    }
+  }, [screenshotImage, renderHighQualityCanvas, imagePath, tempDir]);
+
+  // Copy raw screenshot to clipboard when image first loads
+  useEffect(() => {
+    if (imageLoaded && imagePath) {
+      invoke("copy_image_file_to_clipboard", { path: imagePath }).catch(console.error);
+    }
+  }, [imageLoaded, imagePath]);
+
   // Annotation handlers
   const handleAnnotationAdd = useCallback((annotation: Annotation) => {
     actions.addAnnotation(annotation);
     setSelectedAnnotation(annotation);
-    if (annotation.type !== "number") {
+    if (annotation.type !== "number" && annotation.type !== "arrow") {
       setSelectedTool("select");
     }
-  }, [actions]);
+    // Auto-copy with the new annotation included
+    silentCopyToClipboard([...annotations, annotation]);
+  }, [actions, annotations, silentCopyToClipboard]);
 
   const handleAnnotationUpdateTransient = useCallback((annotation: Annotation) => {
     actions.updateAnnotationTransient(annotation);

@@ -127,6 +127,59 @@ pub async fn save_edited_image(
     Ok(saved_path)
 }
 
+/// Upload a file to a remote server via SCP
+/// Skips upload if the local hostname matches the remote host (already on the target machine)
+#[tauri::command]
+pub async fn scp_upload(
+    local_path: String,
+    remote_user: String,
+    remote_host: String,
+    remote_dir: String,
+) -> Result<String, String> {
+    // Skip if we're already on the remote host
+    let local_hostname = Command::new("hostname")
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    if local_hostname == remote_host || remote_host.starts_with(&format!("{}.", local_hostname)) {
+        // Already on the target machine, just copy locally
+        let path = std::path::Path::new(&local_path);
+        let filename = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| "Invalid file path".to_string())?;
+        let dest = format!("{}/{}", remote_dir, filename);
+        std::fs::copy(&local_path, &dest)
+            .map_err(|e| format!("Local copy failed: {}", e))?;
+        return Ok(dest);
+    }
+
+    let path = std::path::Path::new(&local_path);
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Invalid file path".to_string())?;
+
+    let remote_dest = format!("{}@{}:{}/{}", remote_user, remote_host, remote_dir, filename);
+
+    let output = Command::new("scp")
+        .arg("-o").arg("StrictHostKeyChecking=accept-new")
+        .arg("-o").arg("ConnectTimeout=10")
+        .arg(&local_path)
+        .arg(&remote_dest)
+        .output()
+        .map_err(|e| format!("Failed to execute scp: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("SCP failed: {}", stderr));
+    }
+
+    let remote_path = format!("{}/{}", remote_dir, filename);
+    Ok(remote_path)
+}
+
 /// Get the user's Desktop directory path (cross-platform)
 #[tauri::command]
 pub async fn get_desktop_directory() -> Result<String, String> {

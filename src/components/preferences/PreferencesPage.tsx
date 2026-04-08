@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Store } from "@tauri-apps/plugin-store";
-import { ArrowLeft, Folder } from "lucide-react";
+import { ArrowLeft, Folder, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,10 @@ interface GeneralSettings {
   saveDir: string;
   copyToClipboard: boolean;
   copyFilepathToClipboard: boolean;
+  scpEnabled: boolean;
+  scpUser: string;
+  scpHost: string;
+  scpRemoteDir: string;
 }
 
 export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPageProps) {
@@ -25,6 +29,10 @@ export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPagePro
     saveDir: "",
     copyToClipboard: true,
     copyFilepathToClipboard: false,
+    scpEnabled: true,
+    scpUser: "mikehe",
+    scpHost: "work16.local.org",
+    scpRemoteDir: "",
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,15 +41,23 @@ export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPagePro
     const loadSettings = async () => {
       try {
         const store = await Store.load("settings.json");
-        
+
         const copyToClip = await store.get<boolean>("copyToClipboard");
         const copyFilepath = await store.get<boolean>("copyFilepathToClipboard");
         const saveDir = await store.get<string>("saveDir");
+        const scpEnabled = await store.get<boolean>("scpEnabled");
+        const scpUser = await store.get<string>("scpUser");
+        const scpHost = await store.get<string>("scpHost");
+        const scpRemoteDir = await store.get<string>("scpRemoteDir");
 
         setSettings({
           saveDir: saveDir || "",
           copyToClipboard: copyToClip ?? true,
           copyFilepathToClipboard: copyFilepath ?? false,
+          scpEnabled: scpEnabled ?? true,
+          scpUser: scpUser || "mikehe",
+          scpHost: scpHost || "work16.local.org",
+          scpRemoteDir: scpRemoteDir || "",
         });
       } catch (err) {
         console.error("Failed to load settings:", err);
@@ -142,7 +158,7 @@ export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPagePro
                 <label htmlFor="copy-clipboard" className="text-sm font-medium text-foreground cursor-pointer block">
                   Copy to clipboard
                 </label>
-                <p className="text-xs text-foreground0">Automatically copy screenshots to clipboard after saving</p>
+                <p className="text-xs text-foreground0">Automatically copy screenshots to clipboard when switching apps</p>
               </div>
               <Switch
                 id="copy-clipboard"
@@ -165,6 +181,69 @@ export function PreferencesPage({ onBack, onSettingsChange }: PreferencesPagePro
                 onCheckedChange={(checked) => updateSetting("copyFilepathToClipboard", checked)}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Remote Upload (SCP) */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+              <Upload className="size-5" aria-hidden="true" />
+              Remote Upload (SCP)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <label htmlFor="scp-enabled" className="text-sm font-medium text-foreground cursor-pointer block">
+                  Enable SCP upload
+                </label>
+                <p className="text-xs text-foreground0">Auto-upload screenshots to a remote server after saving</p>
+              </div>
+              <Switch
+                id="scp-enabled"
+                checked={settings.scpEnabled}
+                onCheckedChange={(checked) => updateSetting("scpEnabled", checked)}
+              />
+            </div>
+
+            {settings.scpEnabled && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="scp-user" className="text-sm font-medium text-foreground">Username</label>
+                  <input
+                    id="scp-user"
+                    type="text"
+                    value={settings.scpUser}
+                    onChange={(e) => updateSetting("scpUser", e.target.value)}
+                    placeholder="e.g., mike"
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-card-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="scp-host" className="text-sm font-medium text-foreground">Host</label>
+                  <input
+                    id="scp-host"
+                    type="text"
+                    value={settings.scpHost}
+                    onChange={(e) => updateSetting("scpHost", e.target.value)}
+                    placeholder="e.g., myserver.com"
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-card-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="scp-remote-dir" className="text-sm font-medium text-foreground">Remote Directory</label>
+                  <input
+                    id="scp-remote-dir"
+                    type="text"
+                    value={settings.scpRemoteDir}
+                    onChange={(e) => updateSetting("scpRemoteDir", e.target.value)}
+                    placeholder="e.g., /home/mike/screenshots"
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-card-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono text-sm"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

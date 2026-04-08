@@ -223,16 +223,20 @@ function App() {
   const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>(DEFAULT_SHORTCUTS);
   const [settingsVersion, setSettingsVersion] = useState(0);
   const [tempDir, setTempDir] = useState<string>("/tmp");
+  const [scpEnabled, setScpEnabled] = useState(false);
+  const [scpUser, setScpUser] = useState("");
+  const [scpHost, setScpHost] = useState("");
+  const [scpRemoteDir, setScpRemoteDir] = useState("");
 
   // Refs to hold current values for use in callbacks that may have stale closures
-  const settingsRef = useRef({ autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir });
+  const settingsRef = useRef({ autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir, scpEnabled, scpUser, scpHost, scpRemoteDir });
   const registeredShortcutsRef = useRef<Set<string>>(new Set());
   const lastCaptureTimeRef = useRef(0);
 
   // Keep ref in sync with state
   useEffect(() => {
-    settingsRef.current = { autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir };
-  }, [autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir]);
+    settingsRef.current = { autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir, scpEnabled, scpUser, scpHost, scpRemoteDir };
+  }, [autoApplyBackground, saveDir, copyToClipboard, copyFilepathToClipboard, tempDir, scpEnabled, scpUser, scpHost, scpRemoteDir]);
 
   // Load settings function
   const loadSettings = useCallback(async () => {
@@ -264,6 +268,15 @@ function App() {
       if (savedSaveDir) {
         setSaveDir(savedSaveDir);
       }
+
+      const savedScpEnabled = await store.get<boolean>("scpEnabled");
+      if (savedScpEnabled !== null && savedScpEnabled !== undefined) setScpEnabled(savedScpEnabled);
+      const savedScpUser = await store.get<string>("scpUser");
+      if (savedScpUser) setScpUser(savedScpUser);
+      const savedScpHost = await store.get<string>("scpHost");
+      if (savedScpHost) setScpHost(savedScpHost);
+      const savedScpRemoteDir = await store.get<string>("scpRemoteDir");
+      if (savedScpRemoteDir) setScpRemoteDir(savedScpRemoteDir);
 
       const savedShortcuts = await store.get<KeyboardShortcut[]>("keyboardShortcuts");
       if (savedShortcuts && savedShortcuts.length > 0) {
@@ -340,6 +353,15 @@ function App() {
           }
         }
 
+        const savedScpEnabled2 = await store.get<boolean>("scpEnabled");
+        if (savedScpEnabled2 !== null && savedScpEnabled2 !== undefined) setScpEnabled(savedScpEnabled2);
+        const savedScpUser2 = await store.get<string>("scpUser");
+        if (savedScpUser2) setScpUser(savedScpUser2);
+        const savedScpHost2 = await store.get<string>("scpHost");
+        if (savedScpHost2) setScpHost(savedScpHost2);
+        const savedScpRemoteDir2 = await store.get<string>("scpRemoteDir");
+        if (savedScpRemoteDir2) setScpRemoteDir(savedScpRemoteDir2);
+
         const savedShortcuts = await store.get<KeyboardShortcut[]>("keyboardShortcuts");
         if (savedShortcuts && savedShortcuts.length > 0) {
           setShortcuts(savedShortcuts);
@@ -393,7 +415,7 @@ function App() {
     const appWindow = getCurrentWindow();
     
     // Read current settings from ref to avoid stale closure issues
-    const { autoApplyBackground: shouldAutoApply, saveDir: currentSaveDir, copyToClipboard: shouldCopyToClipboard, copyFilepathToClipboard: shouldCopyFilepath, tempDir: currentTempDir } = settingsRef.current;
+    const { autoApplyBackground: shouldAutoApply, saveDir: currentSaveDir, copyToClipboard: shouldCopyToClipboard, copyFilepathToClipboard: shouldCopyFilepath, tempDir: currentTempDir, scpEnabled: shouldScp, scpUser: currentScpUser, scpHost: currentScpHost, scpRemoteDir: currentScpRemoteDir } = settingsRef.current;
 
     try {
       await appWindow.hide();
@@ -478,6 +500,21 @@ function App() {
 
           if (shouldCopyFilepath) {
             await invoke("copy_text_to_clipboard_cmd", { text: savedPath });
+          }
+
+          // SCP upload if enabled
+          if (shouldScp && currentScpUser && currentScpHost && currentScpRemoteDir) {
+            invoke<string>("scp_upload", {
+              localPath: savedPath,
+              remoteUser: currentScpUser,
+              remoteHost: currentScpHost,
+              remoteDir: currentScpRemoteDir,
+            }).then((remotePath) => {
+              invoke("copy_text_to_clipboard_cmd", { text: `${currentScpHost}:${remotePath}` });
+              toast.success("Uploaded to remote", { description: remotePath, duration: 3000 });
+            }).catch((err) => {
+              toast.error("SCP upload failed", { description: String(err), duration: 5000 });
+            });
           }
 
           await appWindow.hide();
@@ -698,6 +735,21 @@ function App() {
 
       if (copyFilepathToClipboard) {
         await invoke("copy_text_to_clipboard_cmd", { text: savedPath });
+      }
+
+      // SCP upload if enabled
+      if (scpEnabled && scpUser && scpHost && scpRemoteDir) {
+        invoke<string>("scp_upload", {
+          localPath: savedPath,
+          remoteUser: scpUser,
+          remoteHost: scpHost,
+          remoteDir: scpRemoteDir,
+        }).then((remotePath) => {
+          invoke("copy_text_to_clipboard_cmd", { text: `${scpHost}:${remotePath}` });
+          toast.success("Uploaded to remote", { description: remotePath, duration: 3000 });
+        }).catch((err) => {
+          toast.error("SCP upload failed", { description: String(err), duration: 5000 });
+        });
       }
 
       toast.success("Image saved", {

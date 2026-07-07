@@ -152,11 +152,7 @@ struct EditorWindowView: View {
         }
 
         if AppPreferences.copyAfterSave {
-            let pb = NSPasteboard.general
-            pb.clearContents()
-            if let nsImage = NSImage(contentsOf: url) {
-                pb.writeObjects([nsImage])
-            }
+            NSPasteboard.general.writePNG(rendered)
         }
 
         withAnimation { model.toastMessage = "Exported" }
@@ -179,10 +175,7 @@ struct EditorWindowView: View {
     private func copyToClipboard(showToast: Bool = true) async {
         guard let rendered = model.renderFinal() else { return }
 
-        let nsImage = NSImage(cgImage: rendered, size: NSSize(width: rendered.width, height: rendered.height))
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.writeObjects([nsImage])
+        NSPasteboard.general.writePNG(rendered)
         if showToast {
             withAnimation { model.toastMessage = "Copied to clipboard" }
         }

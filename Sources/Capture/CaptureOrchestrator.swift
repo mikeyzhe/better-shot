@@ -127,7 +127,8 @@ final class CaptureOrchestrator {
             }
         }
 
-        if AppPreferences.copyAfterSave, let savedURL {
+        // Always copy the freshly captured image to the clipboard.
+        if let savedURL {
             copyToClipboard(savedURL)
         }
 
@@ -136,13 +137,20 @@ final class CaptureOrchestrator {
         if savedURL != nil {
             let appIcon = NSImage(named: "AppIcon") ?? NSApp.applicationIconImage
             ToastWindow.shared.show(
-                message: AppPreferences.copyAfterSave ? "Screenshot saved & copied!" : "Screenshot saved!",
+                message: "Screenshot saved & copied!",
                 icon: appIcon,
                 on: captureScreen
             )
         }
 
-        PreviewOverlay.shared.show(url: displayURL, on: captureScreen)
+        // Auto-open the editor with the box marker pre-selected; it re-copies to the
+        // clipboard after every edit (autoCopy).
+        EditorWindowController.shared.open(
+            url: displayURL,
+            on: captureScreen,
+            preselectTool: .rectangle,
+            autoCopy: true
+        )
     }
 
     private func saveImage(_ cgImage: CGImage) -> URL? {

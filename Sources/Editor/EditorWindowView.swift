@@ -2,7 +2,10 @@ import SwiftUI
 
 struct EditorWindowView: View {
     @Bindable var urlHolder: CurrentURL
+    var preselectTool: AnnotationTool? = nil
+    var autoCopy: Bool = false
     @State private var model = EditorModel()
+    @State private var autoCopyTask: Task<Void, Never>?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -90,9 +93,26 @@ struct EditorWindowView: View {
         }
         .onAppear {
             model.loadImage(from: urlHolder.url)
+            if let preselectTool {
+                model.selectedTool = preselectTool
+            }
         }
         .onChange(of: urlHolder.url) { _, newURL in
             model.loadImage(from: newURL)
+        }
+        .onChange(of: model.items) { scheduleAutoCopy() }
+        .onChange(of: model.config) { scheduleAutoCopy() }
+        .onChange(of: model.cropRect) { scheduleAutoCopy() }
+    }
+
+    /// Debounced, silent re-copy of the rendered image after each edit (enabled for capture-opened editors).
+    private func scheduleAutoCopy() {
+        guard autoCopy else { return }
+        autoCopyTask?.cancel()
+        autoCopyTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            if Task.isCancelled { return }
+            await copyToClipboard(showToast: false)
         }
     }
 
@@ -156,13 +176,15 @@ struct EditorWindowView: View {
         NSApp.keyWindow?.close()
     }
 
-    private func copyToClipboard() async {
+    private func copyToClipboard(showToast: Bool = true) async {
         guard let rendered = model.renderFinal() else { return }
 
         let nsImage = NSImage(cgImage: rendered, size: NSSize(width: rendered.width, height: rendered.height))
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.writeObjects([nsImage])
-        withAnimation { model.toastMessage = "Copied to clipboard" }
+        if showToast {
+            withAnimation { model.toastMessage = "Copied to clipboard" }
+        }
     }
 }

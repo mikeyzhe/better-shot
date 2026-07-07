@@ -11,11 +11,11 @@ final class EditorWindowController {
 
     private init() {}
 
-    func open(url: URL, on screen: NSScreen? = nil) {
+    func open(url: URL, on screen: NSScreen? = nil, preselectTool: AnnotationTool? = nil, autoCopy: Bool = false) {
         let urlHolder = CurrentURL(url: url)
 
         let hostingView = NSHostingView(rootView:
-            EditorWindowView(urlHolder: urlHolder)
+            EditorWindowView(urlHolder: urlHolder, preselectTool: preselectTool, autoCopy: autoCopy)
                 .frame(minWidth: 800, minHeight: 550)
         )
 

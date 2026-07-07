@@ -20,6 +20,9 @@ APP_RELEASE  = $(DERIVED_DIR)/Build/Products/$(CONFIG_REL)/$(SCHEME).app
 VERSION     := $(shell python3 -c "import json; print(json.load(open('version.json'))['version'])")
 DMG_NAME     = BetterShot-$(VERSION).dmg
 DMG_DIR      = release
+# Stable code-signing identity for local installs — keeps TCC grants (Accessibility,
+# Screen Recording) across rebuilds. Override with `make release SIGN_IDENTITY="..."`.
+SIGN_IDENTITY ?= Apple Development: Yizhou He (U4HVU5232W)
 
 .PHONY: build release run dmg clean lint test-build version ship help
 
@@ -35,7 +38,7 @@ build: ## Debug build
 		build 2>&1 | tail -3
 	@echo "==> $(APP_DEBUG)"
 
-release: ## Release build (unsigned)
+release: ## Release build (signed with SIGN_IDENTITY for stable TCC identity)
 	@echo "==> Building $(SCHEME) (Release)..."
 	@xcodebuild -project $(PROJECT) \
 		-scheme $(SCHEME) \
@@ -44,6 +47,10 @@ release: ## Release build (unsigned)
 		CODE_SIGN_IDENTITY="" \
 		CODE_SIGNING_REQUIRED=NO \
 		build 2>&1 | tail -3
+	@echo "==> Signing with: $(SIGN_IDENTITY)"
+	@codesign --force --deep --sign "$(SIGN_IDENTITY)" \
+		--entitlements Resources/BetterShot.entitlements "$(APP_RELEASE)"
+	@codesign --verify --deep --strict "$(APP_RELEASE)" && echo "==> Signature valid"
 	@echo "==> $(APP_RELEASE)"
 
 run: build ## Build and launch (debug)

@@ -146,11 +146,9 @@ final class CaptureOrchestrator {
     }
 
     private func saveImage(_ cgImage: CGImage) -> URL? {
-        let dir = AppPreferences.saveDirectory
-        let stamp = Int(Date().timeIntervalSince1970 * 1000)
         let ext = AppPreferences.exportFormat.fileExtension
-        let path = "\(dir)/bettershot_\(stamp).\(ext)"
-        let url = URL(fileURLWithPath: path)
+        let dir = URL(fileURLWithPath: AppPreferences.saveDirectory, isDirectory: true)
+        let url = CaptureNaming.uniqueURL(in: dir, ext: ext)
 
         guard let destination = CGImageDestinationCreateWithURL(
             url as CFURL,
@@ -208,5 +206,42 @@ final class CaptureOrchestrator {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.writeObjects([nsImage])
+    }
+}
+
+/// Builds save filenames as `<hostname>-<yyyyMMdd>-<HHmm>.<ext>` (e.g. `w16-20260707-1430.png`),
+/// appending `-2`, `-3`, … when a file already exists for that minute.
+enum CaptureNaming {
+    /// The machine's short hostname, sanitized to filename-safe characters (e.g. `w16`).
+    /// Uses POSIX `gethostname()` rather than `ProcessInfo.hostName`, which does a reverse-DNS
+    /// lookup and can return a network-derived name (e.g. "connectivity-check").
+    static var hostPrefix: String {
+        var buffer = [CChar](repeating: 0, count: 256)
+        let raw = gethostname(&buffer, buffer.count) == 0
+            ? (String(cString: buffer).components(separatedBy: ".").first ?? "")
+            : ""
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let safe = String(raw.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" })
+        return safe.isEmpty ? "shot" : safe
+    }
+
+    /// `<hostname>-<yyyyMMdd>-<HHmm>`, without extension. 24-hour time, locale-independent.
+    static func baseName(date: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmm"
+        return "\(hostPrefix)-\(formatter.string(from: date))"
+    }
+
+    /// A collision-free URL in `directory` with the given extension.
+    static func uniqueURL(in directory: URL, ext: String, date: Date = Date()) -> URL {
+        let base = baseName(date: date)
+        var url = directory.appendingPathComponent("\(base).\(ext)")
+        var counter = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = directory.appendingPathComponent("\(base)-\(counter).\(ext)")
+            counter += 1
+        }
+        return url
     }
 }

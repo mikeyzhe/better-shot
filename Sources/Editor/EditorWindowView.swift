@@ -99,11 +99,9 @@ struct EditorWindowView: View {
     private func exportImage() async {
         guard let rendered = model.renderFinal() else { return }
 
-        let dir = AppPreferences.saveDirectory
-        let stamp = Int(Date().timeIntervalSince1970 * 1000)
         let ext = AppPreferences.exportFormat.fileExtension
-        let path = "\(dir)/bettershot_\(stamp).\(ext)"
-        let url = URL(fileURLWithPath: path)
+        let dir = URL(fileURLWithPath: AppPreferences.saveDirectory, isDirectory: true)
+        let url = CaptureNaming.uniqueURL(in: dir, ext: ext)
 
         guard let dest = CGImageDestinationCreateWithURL(
             url as CFURL,

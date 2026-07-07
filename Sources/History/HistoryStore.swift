@@ -25,12 +25,18 @@ final class HistoryStore {
 
     func importCapture(from tempURL: URL, deleteSource: Bool = true, kind: CaptureKind = .screenshot) -> CaptureRecord? {
         let ext = tempURL.pathExtension.isEmpty ? "png" : tempURL.pathExtension
-        var filename = "bettershot_\(Int(Date().timeIntervalSince1970 * 1000)).\(ext)"
-        var destURL = storageDir.appendingPathComponent(filename)
-        if FileManager.default.fileExists(atPath: destURL.path) {
-            filename = "bettershot_\(Int(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.prefix(6)).\(ext)"
-            destURL = storageDir.appendingPathComponent(filename)
+        let destURL: URL
+        if kind == .screenshot {
+            destURL = CaptureNaming.uniqueURL(in: storageDir, ext: ext)
+        } else {
+            // Recordings keep the original bettershot_<millis> naming.
+            var url = storageDir.appendingPathComponent("bettershot_\(Int(Date().timeIntervalSince1970 * 1000)).\(ext)")
+            if FileManager.default.fileExists(atPath: url.path) {
+                url = storageDir.appendingPathComponent("bettershot_\(Int(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.prefix(6)).\(ext)")
+            }
+            destURL = url
         }
+        let filename = destURL.lastPathComponent
 
         do {
             try FileManager.default.copyItem(at: tempURL, to: destURL)

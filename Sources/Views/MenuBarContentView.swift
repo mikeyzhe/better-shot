@@ -105,11 +105,11 @@ struct MenuBarContentView: View {
         ]
 
         return LazyVGrid(columns: columns, spacing: 6) {
-            TrayGridButton(title: "Region", icon: "rectangle.dashed", shortcut: "\u{2318}4") {
+            TrayGridButton(title: "Region", icon: "rectangle.dashed", shortcut: ShortcutService.shared.shortcutHint(for: .region)) {
                 dismissAndRun(.region)
             }
 
-            TrayGridButton(title: "Screen", icon: "desktopcomputer", shortcut: "\u{2318}3") {
+            TrayGridButton(title: "Screen", icon: "desktopcomputer", shortcut: ShortcutService.shared.shortcutHint(for: .fullscreen)) {
                 dismissAndRun(.fullscreen)
             }
 
@@ -117,7 +117,7 @@ struct MenuBarContentView: View {
                 dismissAndRun(.window)
             }
 
-            TrayGridButton(title: "Pick Color", icon: "eyedropper") {
+            TrayGridButton(title: "Pick Color", icon: "eyedropper", shortcut: ShortcutService.shared.shortcutHint(for: .colorPicker)) {
                 dismissAndRun(.colorPicker)
             }
 
@@ -159,7 +159,7 @@ struct MenuBarContentView: View {
         ]
 
         return LazyVGrid(columns: columns, spacing: 6) {
-            TrayGridButton(title: "OCR", icon: "doc.text.viewfinder", shortcut: "\u{2318}O") {
+            TrayGridButton(title: "OCR", icon: "doc.text.viewfinder", shortcut: ShortcutService.shared.shortcutHint(for: .ocr)) {
                 dismissAndRun(.ocr)
             }
 

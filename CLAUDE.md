@@ -25,29 +25,36 @@ installed as `~/Applications/bettershot.app`.
 — the `.xcodeproj` is **tracked**, so commit the regenerated `project.pbxproj`.
 `CFBundleVersion`/`CFBundleShortVersionString` in `Resources/Info.plist` come
 from those two build settings (`$(CURRENT_PROJECT_VERSION)` /
-`$(MARKETING_VERSION)`), so bump them there, not in the plist.
+`$(MARKETING_VERSION)`), so release metadata is written there, not in the plist.
 
 ## Distribute an update (so `app-update better-shot` picks it up)
 
 The app is delivered through the HomeTool **app-update** server; users
 install/update on any Mac with `app-update better-shot`.
 
-1. **Bump the build number** — `CURRENT_PROJECT_VERSION` in `project.yml` **and**
-   `build` in `version.json`, then `xcodegen generate` and commit. This is
-   mandatory: the server serves the **highest build number** as "latest"
-   (`ORDER BY build DESC`), so a build that isn't higher than the current server
-   max is never served — `app-update better-shot` would keep installing the old one.
-2. **Publish** with the script in the *hometool* repo (not this one):
+1. **Publish** with the script in the *hometool* repo (not this one):
    ```
    ~/Pork/hometool/scripts/tool/publish-bettershot.sh                 # build + publish
-   SKIP_BUILD=1 ~/Pork/hometool/scripts/tool/publish-bettershot.sh    # reuse .build/…
-   DRY_RUN=1    ~/Pork/hometool/scripts/tool/publish-bettershot.sh    # build + zip, no upload
+   SKIP_BUILD=1 ~/Pork/hometool/scripts/tool/publish-bettershot.sh    # retry an already-reserved artifact
+   DRY_RUN=1    ~/Pork/hometool/scripts/tool/publish-bettershot.sh    # reserve + build + zip, no upload
    ```
-   It runs `make release`, stages `BetterShot.app` → **`bettershot.app`**
+   It allocates app key `better-shot` through HomeTool, writes the returned
+   number to `project.yml` and `version.json`, runs XcodeGen and `make release`,
+   then stages `BetterShot.app` → **`bettershot.app`**
    (lowercase!), zips, and POSTs to `/int/app-update/better-shot/publish` with
-   `build = CFBundleVersion`, `version = CFBundleShortVersionString`.
-3. **Verify**: `app-update better-shot` (downloads → sha256-verifies → installs →
+   `build`, `build_host`, `version`, notes, and the zip. `SKIP_BUILD=1` is only
+   for an artifact whose embedded build was already reserved. `DRY_RUN=1`
+   consumes a reservation and leaves a gap even though it skips upload.
+2. For a deliberately split build/publish flow, reserve directly with
+   `BUILD="$(~/Pork/hometool/scripts/tool/hometool-build-number better-shot)"`,
+   then write `BUILD` to both metadata files before XcodeGen and compilation.
+3. Commit `project.yml`, `version.json`, and regenerated
+   `BetterShot.xcodeproj/project.pbxproj` with the release.
+4. **Verify**: `app-update better-shot` (downloads → sha256-verifies → installs →
    relaunches).
+
+Never edit the build to `current + 1`, reuse an abandoned reservation, or
+publish an unreserved build. Allocation failure stops the release.
 
 **Gotcha — bundle name casing:** `make release` emits `BetterShot.app` (capital
 B), but the app-update client greps the download zip for `bettershot.app`
